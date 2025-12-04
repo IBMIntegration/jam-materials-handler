@@ -27,7 +27,7 @@ To set up the local environment, do the following:
     ./run-local.sh
     ```
 
-1. Point your browser to [http://localhost:8080/tracks]
+1. Point your browser to [http://localhost:8080/tracks/](http://localhost:8080/tracks/), the final `/` is important, and navigate to your content.
 
 1. To refresh your test enviornment, hit `R`, to exit, `Q`.
 
