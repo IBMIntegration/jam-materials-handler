@@ -103,15 +103,19 @@ class MDServer {
     this.server = http.createServer(this.handleRequest.bind(this));
     
     return new Promise((resolve, reject) => {
-      this.server.listen(this.config.get('port'), this.config.get('host'), (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          console.log(`🚀 MD Handler server running at http://${this.config.get('host')}:${this.config.get('port')}`);
-          console.log(`📁 Serving files from: ${this.config.get('basePath')}`);
-          resolve();
+      this.server.listen(
+        this.config.get('port'),
+        this.config.get('host'),
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            console.log(`🚀 MD Handler server running at http://${this.config.get('host')}:${this.config.get('port')}`);
+            console.log(`📁 Serving files from: ${this.config.get('basePath')}`);
+            resolve();
+          }
         }
-      });
+      );
     });
   }
 
@@ -130,6 +134,12 @@ class MDServer {
         return;
       }
 
+      if (requestPath === '/') {
+        // Redirect root to /index.md
+        this.sendResponse(res, 302, Buffer.alloc(0), { 'Location': '/tracks/' });
+        return;
+      }
+
       // Handle health check endpoint
       if (requestPath === '/health' || requestPath === '/healthz') {
         this.sendResponse(res, 200, Buffer.from('OK'), 'text/plain');
@@ -142,18 +152,14 @@ class MDServer {
         return;
       }
 
-      console.log('Request path:', requestPath);
-      console.log('NODE_ENV:', process.env.NODE_ENV);
       if (process.env.NODE_ENV === 'local') {
         let topPath = '';
         try {
           topPath = requestPath.split('/')[1];
         } catch (e) {}
-        console.log('Top path segment:', topPath);
         if (['js', 'public'].includes(topPath)) {
           const innerPort = process.env.INCLUDES_SERVICE_PORT || 80;
           const path = `http://localhost:${innerPort}/${requestPath}`;
-          console.log(`Proxying public file request to: ${path}`);
           let data = '';
           http.get(path, (innerRes) => {
             innerRes.on('data', (chunk) => {
@@ -173,8 +179,13 @@ class MDServer {
       // Resolve the file using our file handler
       const result = await resolveFile(requestPath, this.config.get('basePath'));
       
+      const headers = result.headers || {};
+      if (result.contentType) {
+        headers['Content-Type'] = result.contentType;
+      }
+
       // Send the response
-      this.sendResponse(res, result.status, result.buffer, result.contentType);
+      this.sendResponse(res, result.status, result.buffer, headers);
       
       // Log response time
       const duration = Date.now() - startTime;
@@ -186,12 +197,19 @@ class MDServer {
     }
   }
 
-  sendResponse(res, status, buffer, contentType = 'application/octet-stream') {
+  sendResponse(res, status, buffer, headers = 'application/octet-stream') {
+    const contentType = (headers && typeof headers === 'string')
+      ? headers
+      : 'application/octet-stream';
+    headers = (headers && typeof headers === 'object')
+      ? headers
+      : {};
     res.writeHead(status, {
       'Content-Type': contentType,
       'Content-Length': buffer.length,
       'Server': 'MD-Handler/1.0.0',
-      'X-Powered-By': 'Node.js'
+      'X-Powered-By': 'Node.js',
+      ...headers
     });
     res.end(buffer);
   }
@@ -259,7 +277,10 @@ async function main() {
 }
 
 // Start the server if this file is run directly
+console.log('Module URL:', import.meta.url);
+console.log('Process argv[1]:', process.argv[1]);
 if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log('Starting MD Handler server...');
   main().catch(console.error);
 }
 
