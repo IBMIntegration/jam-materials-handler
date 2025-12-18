@@ -18,10 +18,6 @@ function plugin(keyword = 'comment') {
       const start = state.pos;
       const max = state.posMax;
 
-      console.log('commentRule at pos', start, 'max', max,
-        max - start > 10 ? state.src.substr(start, 10) + '...' : state.src.charAt(start)
-      );
-
       // Check if we're at the start of a comment: ${comment (or keyword)
       if (start + keyword.length + 3 > max) return false;
       if (state.src.slice(start, start + keyword.length + 3) !== `\${${keyword} `) return false;

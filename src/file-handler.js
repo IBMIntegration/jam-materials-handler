@@ -297,6 +297,18 @@ export async function resolveFile(requestPath, basePath) {
 
     // If it's a directory, look for index.html
     if (stats && stats.isDirectory()) {
+      if (!requestPath.endsWith('/')) {        
+        // before defaulting, make there there's a slash at the end of the path
+        return {
+          status: 301,
+          headers: {
+            'Location': requestPath + '/'
+          },
+          buffer: Buffer.from('Redirecting to directory path with trailing slash')
+        };
+      }
+
+      // check for index.html or index.md
       try {
         await fs.access(path.join(fullPath, 'index.html'));
       } catch (error) {
